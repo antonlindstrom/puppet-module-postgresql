@@ -1,6 +1,10 @@
 class postgresql::server($version='8.4',
                          $listen_addresses='localhost',
                          $max_connections=100,
+                         $hba_rules=[],
+                         $wal_level='',
+                         $max_wal_senders='',
+                         $hot_standby='',
                          $shared_buffers='24MB') {
   class { 'postgresql::client':
     version => $version,
@@ -21,16 +25,18 @@ class postgresql::server($version='8.4',
     group => 'postgres',
   }
 
-  file { 'pg_hba.conf':
-    path    => "/etc/postgresql/${version}/main/pg_hba.conf",
-    source  => 'puppet:///modules/postgresql/pg_hba.conf',
-    mode    => '0640',
-    require => Package[$pkgname],
-  }
-
   file { 'postgresql.conf':
     path    => "/etc/postgresql/${version}/main/postgresql.conf",
     content => template('postgresql/postgresql.conf.erb'),
+    require => Package[$pkgname],
+  }
+
+  file { 'pg_hba.conf':
+    ensure  => present,
+    content => template('postgresql/pg_hba.conf.erb'),
+    path    => "/etc/postgresql/${version}/main/pg_hba.conf",
+    mode    => '0640',
+    notify  => Service['postgresql'],
     require => Package[$pkgname],
   }
 
