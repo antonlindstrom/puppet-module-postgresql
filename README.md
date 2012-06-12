@@ -63,3 +63,43 @@ properly. This should ideally be placed in `manifests/site.pp`:
     Exec {
       path => "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
     }
+
+Streaming Replication
+------
+
+Set HBA rules and configure SR master:
+
+    $rules = [
+      'host    all         all         10.0.0.0/24          trust',
+      'host    replication all         10.4.0.0/24          trust',
+    ]
+
+    class { 'postgresql::server':
+      version           => '9.1',
+      listen_addresses  => "'*'",
+      hba_rules         => $rules,
+      wal_level         => 'hot_standby',
+      max_wal_senders   => '3',
+    }
+
+SR Slave:
+
+    class { 'postgresql::server':
+      version           => '9.1',
+      listen_addresses  => "'*'",
+      hba_rules         => $rules,
+      hot_standby       => 'on',
+    }
+
+    class { 'postgresql::recoveryconf':
+      version         => '9.1',
+      master_ip       => '10.4.0.2',
+      master_user     => 'ruser',
+      master_password => 'rpass',
+    }
+
+Initial synchronization is unfortunately still needed, perform by doing:
+
+    slave$ rm -rf /var/lib/postgresql/9.1/main/*
+
+    master$ rsync -av /var/lib/postgresql/9.1/main/* slaveip:/var/lib/postgresql/9.1/main/
